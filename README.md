@@ -8,6 +8,8 @@ This is an awareness aid, not a diagnostic or medical device.
 
 Requirements: Node.js 20 or newer, npm, an iPhone with the current Expo Go app, and both devices on the same network.
 
+The project is intentionally pinned to Expo SDK 54 because the newer SDK 55–57 clients are not available through the iOS App Store for physical-device use. Do not run a major Expo SDK upgrade before the class demo unless the App Store client has caught up.
+
 ```bash
 npm install
 npx expo start
