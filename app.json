@@ -1,13 +1,16 @@
 {
   "expo": {
-    "name": "breathesafe",
+    "name": "BreatheSafe",
     "slug": "breathesafe",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "BreatheSafe uses your location to show nearby air quality and weather."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -18,6 +21,10 @@
       },
       "predictiveBackGestureEnabled": false
     },
+    "plugins": [
+      "expo-location",
+      "expo-notifications"
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }
