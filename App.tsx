@@ -3,7 +3,6 @@ import { ActivityIndicator, Alert, KeyboardAvoidingView, Modal, Platform, Pressa
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Slider from '@react-native-community/slider';
 import { LiveApiSource, SimulatedSource, getWeather } from './src/sources';
 import { getRiskBand } from './src/risk';
 import { loadHistory, saveAlert, saveReading, saveSymptom } from './src/storage';
@@ -67,12 +66,22 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      const saved = await AsyncStorage.getItem(SIM_KEY);
-      const prefs = saved ? JSON.parse(saved) : { enabled: false, value: 20 };
+      let prefs = { enabled: false, value: 20 };
+      try {
+        const saved = await AsyncStorage.getItem(SIM_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (typeof parsed.enabled === 'boolean' && Number.isFinite(parsed.value)) {
+            prefs = { enabled: parsed.enabled, value: Math.round(parsed.value) };
+          }
+        }
+      } catch {
+        // Invalid or unavailable preferences should never block the dashboard.
+      }
       setSimulated(prefs.enabled);
       setSimValue(prefs.value);
       await Notifications.requestPermissionsAsync().catch(() => undefined);
-      await refreshHistory();
+      await refreshHistory().catch(() => undefined);
       await refresh(false, prefs.enabled, prefs.value);
     })();
   }, []); // Intentional one-time initialization.
@@ -155,7 +164,7 @@ function HomeScreen({ reading, weather, loading, error, refreshing, onRefresh, o
             <WeatherMetric icon="≈" value={`${Math.round(weather.windSpeed)} mph`} label="Wind" />
           </View> : <Text style={styles.muted}>Weather unavailable</Text>}
         </View>
-        <Pressable style={styles.checkInButton} onPress={onCheckIn}><View><Text style={styles.checkInTitle}>Log breathing symptoms</Text><Text style={styles.checkInText}>Record severity and an optional note</Text></View><Text style={styles.chevron}>›</Text></Pressable>
+        <Pressable style={styles.checkInButton} onPress={onCheckIn}><View><Text style={styles.checkInTitle}>How is your breathing?</Text><Text style={styles.checkInText}>Record severity and an optional note</Text></View><Text style={styles.chevron}>›</Text></Pressable>
         <Text style={styles.updated}>Updated {new Date(reading.ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} · {reading.source === 'simulated' ? 'Simulated data' : 'Open-Meteo near you'}</Text>
         <Text style={styles.disclaimer}>BreatheSafe is an awareness aid, not a medical device. It does not diagnose or replace professional medical advice.</Text>
       </>}
@@ -195,10 +204,7 @@ function SettingsScreen({ simulated, value, onToggle, onValue }: { simulated: bo
     <Text style={styles.pageTitle}>Settings</Text><Text style={styles.pageIntro}>Control data used throughout BreatheSafe.</Text>
     <View style={styles.settingCard}><View style={styles.settingHeader}><View style={styles.flex}><Text style={styles.settingTitle}>Use simulated data</Text><Text style={styles.settingText}>Override live air data for interface testing.</Text></View><Switch value={simulated} onValueChange={onToggle} trackColor={{ false: '#ccd6d3', true: '#7dc1b8' }} thumbColor={simulated ? '#167c72' : '#fff'} /></View>
       <View style={[styles.simControls, !simulated && styles.disabled]} pointerEvents={simulated ? 'auto' : 'none'}>
-        <View style={styles.sliderHeader}><Text style={styles.sliderLabel}>Simulated PM2.5</Text><Text style={styles.sliderValue}>{value} <Text style={styles.sliderUnit}>µg/m³</Text></Text></View>
-        <Slider minimumValue={0} maximumValue={400} step={1} value={value} onValueChange={v => onValue(v)} onSlidingComplete={v => onValue(v, true)} minimumTrackTintColor="#167c72" maximumTrackTintColor="#dce5e3" thumbTintColor="#167c72" />
-        <View style={styles.scale}><Text style={styles.mutedSmall}>0</Text><Text style={styles.mutedSmall}>400</Text></View>
-        <Text style={styles.presetLabel}>QUICK PRESETS</Text><View style={styles.presetRow}>{presets.map(p => <Pressable key={p.name} onPress={() => onValue(p.value, true)} style={[styles.preset, value === p.value && { borderColor: p.color, backgroundColor: `${p.color}16` }]}><View style={[styles.presetDot, { backgroundColor: p.color }]} /><Text style={styles.presetName}>{p.name}</Text><Text style={styles.presetValue}>{p.value}</Text></Pressable>)}</View>
+        <Text style={styles.presetLabel}>AQI PRESETS</Text><View style={styles.presetRow}>{presets.map(p => <Pressable key={p.name} onPress={() => onValue(p.value, true)} style={[styles.preset, value === p.value && { borderColor: p.color, backgroundColor: `${p.color}16` }]}><View style={[styles.presetDot, { backgroundColor: p.color }]} /><Text style={styles.presetName}>{p.name}</Text><Text style={styles.presetValue}>{p.value}</Text></Pressable>)}</View>
         <Text style={styles.demoNote}>For repeatable tests, demo PM2.5 values also drive the displayed AQI band.</Text>
       </View>
     </View>

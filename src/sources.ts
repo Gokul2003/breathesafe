@@ -3,23 +3,39 @@ import { AirQualitySource, AirReading, WeatherReading } from './types';
 import { pm25ToAqi } from './risk';
 
 const ATLANTA = { latitude: 33.75, longitude: -84.39 };
+const REQUEST_TIMEOUT_MS = 12_000;
 
 async function coordinates() {
-  const permission = await Location.requestForegroundPermissionsAsync();
-  if (permission.status !== 'granted') return ATLANTA;
   try {
+    const permission = await Location.requestForegroundPermissionsAsync();
+    if (permission.status !== 'granted') return ATLANTA;
     const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
     return position.coords;
   } catch { return ATLANTA; }
+}
+
+async function fetchJson(url: string, unavailableMessage: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error(unavailableMessage);
+    return await response.json();
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('The data service timed out. Pull down to retry.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export class LiveApiSource implements AirQualitySource {
   async getReading(): Promise<AirReading> {
     const { latitude, longitude } = await coordinates();
     const url = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}&current=pm2_5,pm10,us_aqi,ozone,nitrogen_dioxide,sulphur_dioxide,carbon_monoxide&timezone=auto`;
-    const response = await fetch(url);
-    if (!response.ok) throw new Error('Air-quality service is unavailable.');
-    const data = await response.json();
+    const data = await fetchJson(url, 'Air-quality service is unavailable.');
     const pm25 = Number(data.current?.pm2_5);
     if (!Number.isFinite(pm25)) throw new Error('No PM2.5 reading was returned.');
     const providedAqi = Number(data.current?.us_aqi);
@@ -47,8 +63,6 @@ export class SensorSource implements AirQualitySource {
 export async function getWeather(): Promise<WeatherReading> {
   const { latitude, longitude } = await coordinates();
   const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error('Weather service is unavailable.');
-  const current = (await response.json()).current;
+  const current = (await fetchJson(url, 'Weather service is unavailable.')).current;
   return { temperature: current.temperature_2m, humidity: current.relative_humidity_2m, windSpeed: current.wind_speed_10m, weatherCode: current.weather_code };
 }

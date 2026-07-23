@@ -12,7 +12,7 @@ export function getRiskBand(aqi: number): RiskBand {
   if (aqi <= 150) return { category: 'Unhealthy for Sensitive Groups', color: '#e67e22', risk: 'Elevated', advice: 'Limit prolonged outdoor exertion. Watch for symptoms.', warning: true };
   if (aqi <= 200) return { category: 'Unhealthy', color: '#e74c3c', risk: 'High', advice: 'Avoid outdoor activity. Keep rescue meds nearby.', warning: true };
   if (aqi <= 300) return { category: 'Very Unhealthy', color: '#8e44ad', risk: 'Very High', advice: 'Stay indoors, windows closed, air purifier if available.', warning: true };
-  return { category: 'Hazardous', color: '#7e0023', risk: 'Severe', advice: 'Remain indoors. Seek help if breathing worsens.', warning: true };
+  return { category: 'Hazardous', color: '#7e0023', risk: 'Severe', advice: 'Stay indoors. Seek help if breathing worsens.', warning: true };
 }
 
 // EPA PM2.5 AQI breakpoints. Concentrations are truncated to one decimal place.
